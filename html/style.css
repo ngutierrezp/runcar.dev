@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Quicksand:wght@300..700&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+
+
+html{
+  background-color: #1a1a1a;
+}
+
+.container{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 2rem;
+  max-width: 700px;
+  margin-inline: auto;
+}
+
+.container_title{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2rem;
+  width: 100%;
+}
+
+.container_title h1{
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 400;
+  color: #fff;
+  margin: 0;
+  font-size: 2.5rem;
+}
+
+.container_content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 1rem;
+
+}
+
+.container_content img{
+  width: 100%;
+  height: auto;
+  max-width: 600px;
+  margin-top: 1rem;
+  min-width: 300px;
+}
+
+.card {
+  background-color: #2c2c2c;
+  border-radius: 30px;
+  padding: 1rem;
+  margin-top: 1rem;
+  width: 100%;
+  color: #fff;
+  font-family: 'Quicksand', sans-serif;
+  text-align: center;
+}
+
+.card_content{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.card_content pre{
+  background-color: #3c3c3c;
+  padding: 1rem;
+  border-radius: 10px;
+  max-width: 200px;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-inline: 1rem;
+}
+
+.copy_button {
+  background-color: transparent;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: 'Quicksand', sans-serif;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  transition: background-color 0.3s ease;
+  border-radius: 10px;
+  position: relative;
+}
+.copy_button:hover {
+  background-color: #333;
+}
+.copy_button:active {
+  background-color: #1a1a1a;
+}
+
+.copy_button .tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color:rgb(44, 164, 72);
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 5px;
+  font-family: 'Quicksand', sans-serif;
+  font-size: 0.8rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.copy_button svg{
+  width: 25px;
+  height: 25px;
+}
+
+h1{
+}
