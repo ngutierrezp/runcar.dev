@@ -46,7 +46,8 @@ Feel free to open an [Issue](https://github.com/ngutierrezp/runcar.dev/issues) o
 
 ## 🧪 Demo Preview
 
-![demo gif](https://cdn.ngutierrezp.cl/car.gif)
+You can visit the main page to get more details and see the animation in action:
+[RunCar.dev](https://runcar.dev)
 
 ---
 
