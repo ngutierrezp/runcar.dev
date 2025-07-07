@@ -125,5 +125,55 @@ html{
   height: 25px;
 }
 
-h1{
+.card_actions{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.card_actions button{
+  background-color: #3c3c3c;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-family: 'Quicksand', sans-serif;
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  margin-top: 1rem;
+  transition: background-color 0.3s ease;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 170px;
+  border-radius: 10px;
+}
+.card_actions svg{
+  width: 20px;
+  height: 20px;
+
+}
+
+.card_actions button:hover {
+  background-color: #4c4c4c;
+}
+.card_actions button:active {
+  background-color: #5c5c5c;
+}
+
+.container_footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2rem;
+  color: #fff;
+  font-family: 'Quicksand', sans-serif;
+}
+.container_footer a {
+  color: #4c9aff;
+  text-decoration: none;
+  transition: color 0.3s ease;
 }
