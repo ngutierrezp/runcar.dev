@@ -1,37 +1,36 @@
 /**
- * A simple streaming utility that displays a series of frames in the console.
- * @param {Number} index 
- * @param {Number} total 
- * @returns {Number} - The next index in a circular manner.
+ * Starts the frame animation loop directly to the HTTP response.
+ * Uses setTimeout with drift compensation for better frame accuracy.
+ * Cleans up properly when the client disconnects.
  */
-function selectNextIndex(index, total) {
-  return (index + 1) % total;
-}
-
-/**
- * Streams a series of frames to the console at specified intervals.
- * It clears the console and displays the next frame in the sequence.
- * If the stream is not ready, it waits for the 'drain' event before continuing
- * @param {*} stream - A writable stream to which frames will be pushed
- * @param {Array<string>} frames - An array of strings representing the frames to be displayed
- * @param {Number} [intervalMs=100] - The interval in milliseconds between frames
- * @returns {Function} - A function to stop the streaming
- */
-export function streamer(stream, frames, intervalMs = 100) {
+export function startFrameLoop(res, frames, intervalMs = 100) {
   let index = 0;
   let timer;
+  let firstFrame = true;
+  let lastTick = Date.now();
 
-  function tick() {
-    const clear = '\x1b[2J\x1b[3J\x1b[H';
+  const tick = () => {
+    const now = Date.now();
+    const drift = now - lastTick;
+    lastTick = now;
+
+    // Clear screen only on first frame, then just reset cursor position
+    const clear = firstFrame ? '\x1b[2J\x1b[3J\x1b[H' : '\x1b[H';
+    firstFrame = false;
+
     const frame = frames[index];
-    const ok = stream.push(clear + frame + '\n');
-    index = selectNextIndex(index, frames.length);
+    const content = `${clear}${frame}\n`;
 
+    // Push the frame; if the client is slow, wait for 'drain'
+    const ok = res.write(content);
+    index = (index + 1) % frames.length;
+
+    const nextDelay = Math.max(0, intervalMs - (Date.now() - now));
     if (ok) {
-      timer = setTimeout(tick, intervalMs);
+      timer = setTimeout(tick, nextDelay);
     } else {
-      stream.once('drain', () => {
-        timer = setTimeout(tick, intervalMs);
+      res.once('drain', () => {
+        timer = setTimeout(tick, nextDelay);
       });
     }
   }

@@ -1,68 +1,61 @@
 import http from 'http';
-import { Readable } from 'stream';
 import { isACurlRequest } from './src/validation.js';
 import { getAnimation } from './src/animation.js';
-import { streamer } from './src/stream.js';
+import { startFrameLoop } from './src/stream.js';
+
+
 
 /**
- * Handles incoming HTTP requests and streams animation frames to the client.
- * It checks if the request is a curl request, retrieves the animation frames,
- * and streams them to the response.
- * If the request is not a curl request, it responds with a 400 status code.
- * If the animation frames cannot be loaded, it responds with a 500 status code.
- * @param {*} req
- * @param {*} res 
- * @returns {void}
- * @throws {Error} If the animation frames are missing or invalid.
- * @throws {Error} If the request is not a curl request.
- * @throws {Error} If there is an error reading the animation file.
- * @throws {Error} If the server fails to start.
+ * Handles a single HTTP request.
+ * Verifies if the client is using curl, loads animation, and streams it.
  */
 function handleRequest(req, res) {
   if (!isACurlRequest(req)) {
-    if (!res.headersSent) {
-      res.writeHead(400, { 'Content-Type': 'text/plain' });
-    }
-    return res.end('This server only supports curl requests.\n');
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    return res.end('🚫 This server only supports curl requests.\n');
   }
 
   let frames;
-
   try {
     frames = getAnimation();
     if (!Array.isArray(frames) || frames.length === 0) {
-      throw new Error('Animation frames are missing or invalid');
+      throw new Error('Animation frames are missing');
     }
   } catch (err) {
-    console.error('Failed to load animation:', err.message);
-    if (!res.headersSent) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-    }
-    return res.end('Failed to load animation.\n');
+    console.error('❌ Failed to load animation:', err.message);
+    res.writeHead(500, { 'Content-Type': 'text/plain' });
+    return res.end('💥 Internal server error. Please try again later.\n');
   }
 
-  const stream = new Readable({ read() {} });
+  // Optional: read frame rate from custom header
+  const clientFPS = parseInt(req.headers['x-frame-rate'], 10);
+  const interval = Number.isInteger(clientFPS) && clientFPS >= 30 ? clientFPS : 100;
+
+  // Start sending content to the client
   res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-  stream.pipe(res);
+  res.write('\n🏁 Welcome to runcar.dev — ASCII animation is about to begin!\n\n');
 
-  const cleanup = streamer(stream, frames);
+  const cleanup = startFrameLoop(res, frames, interval);
 
+  // Ensure we clean up resources if the client disconnects
   const onClose = () => {
     cleanup();
-    stream.destroy();
-    console.log('Client disconnected. ❌');
+    console.log(`👋 Client disconnected.`);
   };
 
   res.on('close', onClose);
   res.on('error', onClose);
 }
 
+/**
+ * Starts the HTTP server.
+ */
 function createServer() {
   const server = http.createServer(handleRequest);
   const port = process.env.PORT || 3000;
 
   server.listen(port, () => {
-    console.log(`🚗 Server is running at http://localhost:${port}`);
+    console.log(`🏎️  runcar.dev server running at http://localhost:${port}`);
   });
 }
 
