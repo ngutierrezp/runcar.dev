@@ -82,9 +82,9 @@ jobs:
         key: ${{ secrets.VM_SSH_KEY }}
         passphrase: ${{ secrets.VM_SSH_KEY_PASSPHRASE }}
         script: |
-          docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
-          docker pull ghcr.io/${{ github.repository }}:latest
-          docker stop runcar || true
-          docker rm runcar || true
-          docker run -d --name runcar -p 80:3000 ghcr.io/${{ github.repository }}:latest
+          sudo docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+          sudo docker pull ghcr.io/${{ github.repository }}:latest
+          sudo docker stop runcar || true
+          sudo docker rm runcar || true
+          sudo docker run -d --name runcar -p 80:3000 ghcr.io/${{ github.repository }}:latest
 
