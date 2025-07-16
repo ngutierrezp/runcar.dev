@@ -55,16 +55,16 @@ jobs:
           docker push ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
           docker push ghcr.io/${{ github.repository }}:latest
 
-      - name: Create version tag vX.Y.Z
+      - name: Create Github version tag
         if: startsWith(github.ref, 'refs/heads/main')
         env:
-          GH_PUSH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }}
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git tag v${{ steps.version.outputs.version }}
-          git remote set-url origin https://x-access-token:${GH_PUSH_TOKEN}@github.com/${{ github.repository }}.git
-          git push origin v${{ steps.version.outputs.version }}
+          gh config set prompt disabled
+          VERSION="v${{ steps.version.outputs.version }}"
+          echo "Tagging version $VERSION"
+          git tag $VERSION
+          gh release create $VERSION --title "$VERSION" --notes "Release $VERSION"
 
   deploy:
     needs: build-and-push
