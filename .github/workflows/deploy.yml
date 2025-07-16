@@ -1,0 +1,75 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*.*.*' ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Validate unique version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Checking version: v$VERSION"
+          git fetch --tags
+          if git tag | grep -q "^v$VERSION$"; then
+            echo "❌ Version v$VERSION already exists as a tag. Please update package.json."
+            exit 1
+          fi
+          echo "✅ Version v$VERSION is available to use."
+
+      - name: Build Docker image
+        run: |
+          docker build -t ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }} .
+          docker tag ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }} ghcr.io/${{ github.repository }}:latest
+
+      - name: Push Docker image
+        run: |
+          docker push ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+          docker push ghcr.io/${{ github.repository }}:latest
+
+      - name: Create version tag vX.Y.Z
+        if: startsWith(github.ref, 'refs/heads/main')
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git tag v${{ steps.version.outputs.version }}
+          git push origin v${{ steps.version.outputs.version }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update container on VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+            docker pull ghcr.io/${{ github.repository }}:latest
+            docker stop runcar || true
+            docker rm runcar || true
+            docker run -d --name runcar -p 80:3000 ghcr.io/${{ github.repository }}:latest

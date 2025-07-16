@@ -1,0 +1,23 @@
+name: Version Check
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Validate unique version 
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Checking version for: v$VERSION"
+          git fetch --tags
+          if git tag | grep -q "^v$VERSION$"; then
+            echo "❌ Version v$VERSION already exists as a tag. Please update package.json before merging to main."
+            exit 1
+          fi
+          echo "✅ Version v$VERSION is available for merge."
