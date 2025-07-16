@@ -57,10 +57,13 @@ jobs:
 
       - name: Create version tag vX.Y.Z
         if: startsWith(github.ref, 'refs/heads/main')
+        env:
+          GH_PUSH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }}
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
           git tag v${{ steps.version.outputs.version }}
+          git remote set-url origin https://x-access-token:${GH_PUSH_TOKEN}@github.com/${{ github.repository }}.git
           git push origin v${{ steps.version.outputs.version }}
 
   deploy:
