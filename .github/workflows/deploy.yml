@@ -62,6 +62,11 @@ jobs:
         run: |
           gh config set prompt disabled
           VERSION="v${{ steps.version.outputs.version }}"
+          echo "Checking if tag $VERSION already exists..."
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            echo "Tag $VERSION already exists. Skipping release creation."
+            exit 0
+          fi
           echo "Creating release and tag $VERSION"
           gh release create $VERSION --title "$VERSION" --notes "Release $VERSION" --target "${GITHUB_SHA}"
 
