@@ -30,14 +30,20 @@ jobs:
 
       - name: Validate unique version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "Checking version: v$VERSION"
-          git fetch --tags
-          if git tag | grep -q "^v$VERSION$"; then
-            echo "❌ Version v$VERSION already exists as a tag. Please update package.json."
-            exit 1
+          VERSION_TAG=$(git tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+          echo "Latest version tag: $VERSION_TAG"
+          if [ -z "$VERSION_TAG" ]; then
+            echo "No version tags found. Proceeding."
+          else
+            echo "Checking if version tag $VERSION_TAG already exists on this commit."
+            CURRENT_COMMIT=$(git rev-parse HEAD)
+            TAG_COMMIT=$(git rev-list -n 1 $VERSION_TAG)
+            if [ "$CURRENT_COMMIT" = "$TAG_COMMIT" ]; then
+              echo "❌ This commit is already tagged as $VERSION_TAG. Please update package.json and create a new version tag."
+              exit 1
+            fi
           fi
-          echo "✅ Version v$VERSION is available to use."
+          echo "✅ This commit is not tagged with the latest version. Proceeding."
 
       - name: Build Docker image
         run: |
