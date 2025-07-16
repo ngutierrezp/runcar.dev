@@ -62,9 +62,8 @@ jobs:
         run: |
           gh config set prompt disabled
           VERSION="v${{ steps.version.outputs.version }}"
-          echo "Tagging version $VERSION"
-          git tag $VERSION
-          gh release create $VERSION --title "$VERSION" --notes "Release $VERSION"
+          echo "Creating release and tag $VERSION"
+          gh release create $VERSION --title "$VERSION" --notes "Release $VERSION" --target "${GITHUB_SHA}"
 
   deploy:
     needs: build-and-push
