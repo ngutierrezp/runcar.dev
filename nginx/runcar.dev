@@ -52,7 +52,14 @@ server {
     root /home/ngutierrezp/runcar.dev/html;
     index index.html;
 
+    # Explicit TTL on static assets so edge caches (e.g. Cloudflare) revalidate after
+    # deploys. Without this, CSS/JS can stay pinned for days while HTML updates.
+    location ~* \.(?:css|js|ico|svg|png|jpg|jpeg|gif|webp|woff2?)$ {
+        add_header Cache-Control "public, max-age=300, must-revalidate" always;
+        try_files $uri =404;
+    }
+
     location / {
-        add_header Cache-Control "public, max-age=300" always;
+        add_header Cache-Control "public, max-age=300, must-revalidate" always;
     }
 }
