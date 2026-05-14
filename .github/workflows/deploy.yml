@@ -5,6 +5,12 @@ on:
     branches: [ main ]
     tags: [ 'v*.*.*' ]
 
+# Paths on the VM (must match nginx `root` for HTTPS in nginx/runcar.dev)
+env:
+  VM_SITE_ROOT: /home/ngutierrezp/runcar.dev
+  VM_NGINX_AVAILABLE: /etc/nginx/sites-available/runcar.dev
+  VM_NGINX_ENABLED: /etc/nginx/sites-enabled/runcar.dev
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -73,18 +79,67 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
-    - name: Update container on VM
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.VM_HOST }}
-        username: ${{ secrets.VM_USER }}
-        key: ${{ secrets.VM_SSH_KEY }}
-        passphrase: ${{ secrets.VM_SSH_KEY_PASSPHRASE }}
-        script: |
-          docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
-          docker pull ghcr.io/${{ github.repository }}:latest
-          docker stop runcar || true
-          docker rm runcar || true
-          docker run -d --name runcar -p 3000:3000 ghcr.io/${{ github.repository }}:latest
+      - name: Checkout code
+        uses: actions/checkout@v4
 
+      # --- Static site + nginx (repo is source of truth; keeps https:// in sync with git) ---
+      - name: Upload static site (html/)
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          passphrase: ${{ secrets.VM_SSH_KEY_PASSPHRASE }}
+          source: "html"
+          target: ${{ env.VM_SITE_ROOT }}/
+          overwrite: true
+
+      - name: Upload nginx site config
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          passphrase: ${{ secrets.VM_SSH_KEY_PASSPHRASE }}
+          source: "nginx/runcar.dev"
+          target: /tmp/
+
+      - name: Apply nginx config, reload, and update Docker container
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          # Same-repo GHCR pull works with GITHUB_TOKEN. Optional: set secret
+          # GHCR_READ_TOKEN (PAT with read:packages) if pulls from the VM fail.
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          passphrase: ${{ secrets.VM_SSH_KEY_PASSPHRASE }}
+          envs: GHCR_TOKEN
+          script: |
+            set -euo pipefail
+            echo "=== Install nginx site config ==="
+            if [ -f /tmp/runcar.dev ]; then
+              SRC=/tmp/runcar.dev
+            elif [ -f /tmp/nginx/runcar.dev ]; then
+              SRC=/tmp/nginx/runcar.dev
+            else
+              echo "Uploaded nginx config not found under /tmp"
+              ls -la /tmp || true
+              exit 1
+            fi
+            sudo cp "$SRC" ${{ env.VM_NGINX_AVAILABLE }}
+            sudo ln -sf ${{ env.VM_NGINX_AVAILABLE }} ${{ env.VM_NGINX_ENABLED }}
+            sudo nginx -t
+            sudo systemctl reload nginx
+            echo "=== Docker: login, pull, restart runcar ==="
+            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            docker pull "ghcr.io/${{ github.repository }}:latest"
+            docker stop runcar 2>/dev/null || true
+            docker rm runcar 2>/dev/null || true
+            docker run -d --name runcar -p 3000:3000 "ghcr.io/${{ github.repository }}:latest"
+            echo "=== Done ==="

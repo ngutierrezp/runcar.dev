@@ -19,6 +19,14 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
+    # Static assets first (correct MIME, no accidental proxy/fallback to index).
+    location ~* \.(css|ico|js|woff2?)$ {
+        root /home/ngutierrezp/runcar.dev/html;
+        try_files $uri =404;
+        access_log off;
+        add_header Cache-Control "public, max-age=86400";
+    }
+
     location / {
         root /home/ngutierrezp/runcar.dev/html;
         index index.html;
