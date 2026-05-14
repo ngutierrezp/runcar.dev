@@ -1,3 +1,4 @@
+# HTTP: keep proxy to Node so `curl runcar.dev` (and curl www) still streams the animation.
 server {
     listen 80;
     server_name runcar.dev www.runcar.dev;
@@ -9,17 +10,32 @@ server {
     }
 }
 
+# HTTPS www → canonical apex (no www).
 server {
     listen 443 ssl;
     http2 on;
-    server_name runcar.dev www.runcar.dev;
+    server_name www.runcar.dev;
 
     ssl_certificate /etc/letsencrypt/live/runcar.dev/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/runcar.dev/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-    # Static assets first (correct MIME, no accidental proxy/fallback to index).
+    return 301 https://runcar.dev$request_uri;
+}
+
+# HTTPS apex: static site (HTML + CSS) from disk.
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name runcar.dev;
+
+    ssl_certificate /etc/letsencrypt/live/runcar.dev/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/runcar.dev/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # Static assets first (correct MIME, no accidental fallback to index.html).
     location ~* \.(css|ico|js|woff2?)$ {
         root /home/ngutierrezp/runcar.dev/html;
         try_files $uri =404;
