@@ -5,7 +5,8 @@ on:
     branches: [ main ]
     tags: [ 'v*.*.*' ]
 
-# Paths on the VM (must match nginx `root` for HTTPS in nginx/runcar.dev)
+# Paths on the VM (must match nginx `root` in nginx/runcar.dev).
+# Optional repo Variables: NGINX_SITE_AVAILABLE, NGINX_SITE_ENABLED (see workflow).
 env:
   VM_SITE_ROOT: /home/ngutierrezp/runcar.dev
   VM_NGINX_AVAILABLE: /etc/nginx/sites-available/runcar.dev
@@ -86,7 +87,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # --- Static site + nginx (repo is source of truth; keeps https:// in sync with git) ---
+      - name: Resolve nginx paths on the VM
+        run: |
+          echo "VM_NGINX_AVAILABLE=${NG_AV:-/etc/nginx/sites-available/runcar.dev}" >> "$GITHUB_ENV"
+          echo "VM_NGINX_ENABLED=${NG_EN:-/etc/nginx/sites-enabled/runcar.dev}" >> "$GITHUB_ENV"
+          echo "nginx available path: ${NG_AV:-/etc/nginx/sites-available/runcar.dev}"
+          echo "nginx enabled path:   ${NG_EN:-/etc/nginx/sites-enabled/runcar.dev}"
+        env:
+          NG_AV: ${{ vars.NGINX_SITE_AVAILABLE }}
+          NG_EN: ${{ vars.NGINX_SITE_ENABLED }}
+
+      # --- Static site + nginx (repo is source of truth) ---
       - name: Upload static site (html/)
         uses: appleboy/scp-action@v1
         with:
@@ -122,7 +133,8 @@ jobs:
           envs: GHCR_TOKEN
           script: |
             set -euo pipefail
-            echo "=== Install nginx site config ==="
+            echo "=== Find uploaded nginx snippet under /tmp ==="
+            find /tmp -maxdepth 3 \( -name 'runcar.dev' -o -path '*/nginx/runcar.dev' \) -type f 2>/dev/null | head -20 || true
             if [ -f /tmp/runcar.dev ]; then
               SRC=/tmp/runcar.dev
             elif [ -f /tmp/nginx/runcar.dev ]; then
@@ -132,8 +144,13 @@ jobs:
               ls -la /tmp || true
               exit 1
             fi
+            echo "=== Install → ${{ env.VM_NGINX_AVAILABLE }} ==="
             sudo cp "$SRC" ${{ env.VM_NGINX_AVAILABLE }}
             sudo ln -sf ${{ env.VM_NGINX_AVAILABLE }} ${{ env.VM_NGINX_ENABLED }}
+            echo "=== Verify marker (fails if wrong file path) ==="
+            sudo grep -q 'DEPLOY_MARKER: runcar-nginx-v3-apex-only' ${{ env.VM_NGINX_AVAILABLE }} || { echo "::error::Installed nginx file missing expected marker — set repo variable NGINX_SITE_AVAILABLE"; exit 1; }
+            sudo head -n 25 ${{ env.VM_NGINX_AVAILABLE }}
+            ls -la ${{ env.VM_NGINX_ENABLED }} || true
             sudo nginx -t
             sudo systemctl reload nginx
             echo "=== Docker: login, pull, restart runcar ==="
