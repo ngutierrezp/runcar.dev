@@ -2,8 +2,7 @@ import http from 'http';
 import { isACurlRequest } from './src/validation.js';
 import { getAnimation } from './src/animation.js';
 import { startFrameLoop } from './src/stream.js';
-
-
+import { config } from './src/config.js';
 
 /**
  * Handles a single HTTP request.
@@ -27,20 +26,27 @@ function handleRequest(req, res) {
     return res.end('💥 Internal server error. Please try again later.\n');
   }
 
-  // Optional: read frame rate from custom header
+  // Optional: read frame rate from custom header. Clamp to a sane minimum
+  // so a client can't ask us to flood the connection.
   const clientFPS = parseInt(req.headers['x-frame-rate'], 10);
-  const interval = Number.isInteger(clientFPS) && clientFPS >= 30 ? clientFPS : 100;
+  const interval =
+    Number.isInteger(clientFPS) && clientFPS >= config.minFrameIntervalMs
+      ? clientFPS
+      : config.frameIntervalMs;
 
-  // Start sending content to the client
+  // Color rendering can be disabled via header (per request) or env (globally).
+  const requestNoColor = req.headers['x-no-color'] === '1';
+  const colors = config.colorsEnabled && !requestNoColor;
+
   res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.write('\n🏁 Welcome to runcar.dev — ASCII animation is about to begin!\n\n');
 
-  const cleanup = startFrameLoop(res, frames, interval);
+  const cleanup = startFrameLoop(res, frames, interval, { colors });
 
   // Ensure we clean up resources if the client disconnects
   const onClose = () => {
     cleanup();
-    console.log(`👋 Client disconnected.`);
+    console.log('👋 Client disconnected.');
   };
 
   res.on('close', onClose);
@@ -56,6 +62,9 @@ function createServer() {
 
   server.listen(port, () => {
     console.log(`🏎️  runcar.dev server running at http://localhost:${port}`);
+    console.log(
+      `   frame interval: ${config.frameIntervalMs}ms, colors: ${config.colorsEnabled ? 'on' : 'off'}`,
+    );
   });
 }
 
